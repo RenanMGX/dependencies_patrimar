@@ -1,10 +1,18 @@
+from os import path
 from setuptools import setup, find_packages
+
+here = path.abspath(path.dirname(__file__))
+
+with open(path.join(here, 'requirements.txt')) as requirements_file:
+    # Parse requirements.txt, ignoring any commented-out lines.
+    requirements = [line for line in requirements_file.read().splitlines()
+                    if not line.startswith('#')]
 
 setup(
     name='dependencies',
-    version='1.0',
+    version='2.0',
     packages=find_packages(),
-    install_requires=[],
+    install_requires=requirements,
     author='Renan Oliveira',
     author_email='renanmgx@hotmail.com',
     description='Layout de dependências para projetos Python',
