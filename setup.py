@@ -3,10 +3,13 @@ from setuptools import setup, find_packages
 
 here = path.abspath(path.dirname(__file__))
 
-with open(path.join(here, 'requirements.txt')) as requirements_file:
+with open(path.join(here, 'requirements.txt'), 'r', encoding='utf-16') as requirements_file:
     # Parse requirements.txt, ignoring any commented-out lines.
     requirements = [line for line in requirements_file.read().splitlines()
                     if not line.startswith('#')]
+    #requirements = requirements_file.read()
+
+#print(requirements)
 
 setup(
     name='dependencies',
