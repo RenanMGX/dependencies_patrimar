@@ -10,8 +10,8 @@ import json
 from getpass import getuser
 from socket import gethostname
 from .config import Config
-from functions import P
-from credenciais import Credential
+from .functions import P
+from .credenciais import Credential
 
 class Logs:
     @property

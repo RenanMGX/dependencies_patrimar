@@ -7,7 +7,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import Select
-from functions import P
+from .functions import P
 from time import sleep
 from typing import List, Union
 import os

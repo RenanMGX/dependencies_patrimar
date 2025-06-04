@@ -13,12 +13,12 @@ with open(path.join(here, 'requirements.txt'), 'r', encoding='utf-16') as requir
 
 setup(
     name='dependencies',
-    version='2.0',
+    version='2.2',
     packages=find_packages(),
     install_requires=requirements,
     author='Renan Oliveira',
     author_email='renanmgx@hotmail.com',
-    description='Layout de dependências para projetos Python',
+    description='Layout de dependências para projetos Patrimar',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/RenanMGX/dependencies_patrimar.git',

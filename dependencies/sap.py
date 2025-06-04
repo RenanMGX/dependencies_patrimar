@@ -1,5 +1,5 @@
-from logs import Logs
-from functions import P
+from .logs import Logs
+from .functions import P
 import win32com.client
 from functools import wraps
 import psutil

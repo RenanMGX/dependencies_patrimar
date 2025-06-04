@@ -1,6 +1,6 @@
 import sys
 from typing import Dict, List
-from logs import Logs, traceback
+from .logs import Logs, traceback
 from typing import Literal
 
 class Arguments:
