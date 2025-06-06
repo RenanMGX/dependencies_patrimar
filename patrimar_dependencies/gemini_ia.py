@@ -2,6 +2,7 @@ import google.generativeai as gemini
 from typing import Literal
 import json
 import os
+import traceback
 class Historico:
     path = os.path.join(f'C:\\Users\\{os.getlogin()}', '.historico_gemini.json')
     
@@ -105,13 +106,47 @@ class GeminiIA:
             Historico.set_historico(historico=history)
             
         return response
+    
+class ErrorIA(GeminiIA):
+    @staticmethod
+    def error_message(*, token:str, message:str) -> str:
+            if token:
+                try:
+                    ia = GeminiIA(token=token,
+                                instructions="""
+    Você receberá um traceback de erro em Python.
+    Sua tarefa é dividida em duas partes:
+
+    1. Análise:
+    Identifique e descreva de forma objetiva e direta qual é o erro apresentado no traceback. Foque na causa principal do problema.
+
+    2. Resolução:
+    Sugira uma correção breve e prática para resolver o erro identificado. A sugestão deve ser clara, aplicável e sem explicações adicionais.
+
+    Não se apresente, não explique o que está fazendo e não adicione comentários extras. Apenas forneça a análise e a resolução, de forma direta e concisa.
+                                """,
+                                temperature=0.2,
+                                top_p=0.8,
+                                top_k=40,
+                                )
+                    resposta = ia.perguntar(pergunta=message).text
+                    return resposta
+                except Exception as e:
+                    return ""
+            
+            return ""
+        
+        
         
 if __name__ == "__main__":
-    with open("token.txt", "r") as _file:
+    with open(r"token.txt", "r") as _file:
         api_token = _file.read().strip()
     
-    ia = GeminiIA(token=api_token, model='gemini-2.0-flash-lite')
-    
-    response = ia.perguntar("Qual é o seu nome?")
-    
-    print(response.text)
+    try:
+        raise Exception("Erro de teste para Gemini IA")
+    except Exception as error:
+        resposta = ErrorIA.error_message(token=api_token, message=traceback.format_exc())
+        if resposta:
+            print("Resposta da IA:", resposta)
+        else:
+            print("Não foi possível obter uma resposta da IA.")
