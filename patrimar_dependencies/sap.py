@@ -1,4 +1,3 @@
-from .logs import Logs
 from .functions import P
 import win32com.client
 from functools import wraps
@@ -60,14 +59,6 @@ class SAPManipulation():
         except:
             pass
         
-    @property
-    def log(self) -> Logs:
-        """
-        Retorna um objeto de log.
-
-        :return: Objeto de log.
-        """
-        return Logs()
     
     @property
     def using_active_conection(self) -> bool:
@@ -206,7 +197,6 @@ class SAPManipulation():
                         
                             
                         if _ >= ((60*60) - 2):
-                            Logs().register(status='Error', description="não foi possivel se conectar a mais uma tela do SAP", exception=traceback.format_exc())
                             sys.exit()
                         
                         if connection.Children.Count >= 6:
@@ -243,7 +233,6 @@ class SAPManipulation():
                     if "connection = application.OpenConnection(self.__ambiente, True)" in traceback.format_exc():
                         raise Exception("SAP está fechado!")
                     else:
-                        self.log.register(status='Error', description=str(error), exception=traceback.format_exc())
                         raise ConnectionError(f"não foi possivel se conectar ao SAP motivo: {type(error).__class__} -> {error}")
             else:
                 try:
@@ -260,8 +249,6 @@ class SAPManipulation():
                         raise Exception("SAP está fechado!")
                     elif "SAP está fechado!" in traceback.format_exc():
                         raise Exception("SAP está fechado!")
-                    else:
-                        self.log.register(status='Error', description=str(error), exception=traceback.format_exc())
 
     # Método para fechar o SAP
     def fechar_sap(self):

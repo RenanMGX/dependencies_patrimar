@@ -13,7 +13,7 @@ from .config import Config
 from .functions import P
 from .credenciais import Credential
 
-class Logs:
+class Logs_old:
     @property
     def path_folder(self) -> str:
         return self.__path_folder
@@ -111,6 +111,6 @@ class Logs:
         print(P(f"{status}: {str(description)}", color='magenta')) 
 
 if __name__ == "__main__":
-    bot = Logs("testes")
+    bot = Logs_old("testes")
     #asyncio.run(bot.register(status='Test', description="Test", exception=traceback.format_exc()))
     
