@@ -12,8 +12,8 @@ with open(path.join(here, 'requirements.txt'), 'r', encoding='utf-16') as requir
 #print(requirements)
 
 setup(
-    name='dependencies',
-    version='2.2',
+    name='patrimar_dependencies',
+    version='2.3',
     packages=find_packages(),
     install_requires=requirements,
     author='Renan Oliveira',
