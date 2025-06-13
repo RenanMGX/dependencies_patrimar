@@ -52,7 +52,7 @@ class SharePointFolders(str):
             self.__found_path = self.__search()
             self.__save_registerPath()
 
-        self.__value:str = self.base_path
+        self.__value:str = self.found_path
         
     def __search(self):
         for root, paths, files in os.walk(self.base_path):
