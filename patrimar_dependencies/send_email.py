@@ -8,7 +8,7 @@ from email import encoders
 from typing import Literal
 import os
 import re
-from functions import P
+from .functions import P
 
 class SendEmail:
     def __init__(self, *,
