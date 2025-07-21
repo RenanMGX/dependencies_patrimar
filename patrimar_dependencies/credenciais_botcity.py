@@ -5,19 +5,12 @@ class CredentialNotFound(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
-class CredentialBotCity:
-    @property
-    def login(self) -> str:
-        return self.__login
-    
-    @property
-    def key(self) -> str:
-        return self.__key
-    
+
+class BotCityApi:
     @staticmethod
     def token(f):
         def wraps(*args, **kwargs):
-            self:CredentialBotCity = args[0]
+            self:BotCityApi = args[0]
             self.get_token()
             result = f(*args, **kwargs)
             return result
@@ -25,8 +18,8 @@ class CredentialBotCity:
     
     
     def __init__(self, *, login:str, key:str) -> None:
-        self.__login:str = login
-        self.__key:str = key
+        self.login:str = login
+        self.key:str = key
         
         self.acessToken:str = ""
         self.organizationLabel:str = ""
@@ -54,8 +47,14 @@ class CredentialBotCity:
         self.refreshToken = response.json().get("refreshToken")
 
         return True
+
+
+class CredentialBotCity(BotCityApi):    
+    def __init__(self, *, login: str, key: str) -> None:
+        super().__init__(login=login, key=key)
+        
     
-    @token
+    @BotCityApi.token
     def get_credential(self, label:str) -> dict:
         reqUrl:str = "https://developers.botcity.dev/api/v2/credential"
         
@@ -82,7 +81,7 @@ class CredentialBotCity:
         
         raise CredentialNotFound(f"O {label=} não foi encontrado nas credenciais salvas!")
     
-    @token
+    @BotCityApi.token
     def alter_credential(self, *, label:str, key:str, value:str) -> bool:
         reqUrl = f"https://developers.botcity.dev/api/v2/credential/{label}"
 
@@ -96,7 +95,7 @@ class CredentialBotCity:
         try:
             lista = self.get_credential(label)
         except CredentialNotFound:
-            self.__create_crendential(label=label, key=key, value=value)
+            self._create_crendential(label=label, key=key, value=value)
             lista = self.get_credential(label)
         
                 
@@ -121,8 +120,8 @@ class CredentialBotCity:
         
         return True
     
-    @token
-    def __create_crendential(self, *, label:str, key:str, value:str):
+    @BotCityApi.token
+    def _create_crendential(self, *, label:str, key:str, value:str):
         reqUrl = f"https://developers.botcity.dev/api/v2/credential"
 
         headersList = {
@@ -148,7 +147,7 @@ class CredentialBotCity:
         
         return True
     
-    @token
+    @BotCityApi.token
     def teste(self):
         return
         
