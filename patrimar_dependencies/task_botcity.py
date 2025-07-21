@@ -1,4 +1,4 @@
-from credenciais_botcity import BotCityApi, json, requests
+from .credenciais_botcity import BotCityApi, json, requests
 import base64
 
 class TaskBotCity(BotCityApi):
