@@ -72,9 +72,13 @@ class TaskBotCity(BotCityApi):
         if artifact_response.status_code != 200:
             print("artefato não encontrado!")
             return artifact_response 
-                
-        artifact_content = artifact_response.json().get("content")[0]
-        artifact_id:int = artifact_content.get("id")
+        
+        try:
+            artifact_content = artifact_response.json().get("content")[0]
+            artifact_id:int = artifact_content.get("id")
+        except:
+            print("artefato não encontrado!")
+            return artifact_response 
         
         reqUrl = f"https://developers.botcity.dev/api/v2/artifact/{artifact_id}/file"
 
