@@ -1,5 +1,11 @@
-from .credenciais_botcity import BotCityApi, json, requests
+try:
+    from .credenciais_botcity import BotCityApi
+except:
+    from credenciais_botcity import BotCityApi
 import base64
+import requests
+from requests.models import Response
+import json
 
 class TaskBotCity(BotCityApi):
     def __init__(self, *, login: str, key: str) -> None:
@@ -44,6 +50,54 @@ class TaskBotCity(BotCityApi):
         return response
     
     
+    @BotCityApi.token
+    def get_artifact(self, *, task_id:int):
+        reqUrl = f"https://developers.botcity.dev/api/v2/artifact?taskId={task_id}"
+
+        headersList = {
+        "organization": self.organizationLabel,
+        "Authorization": f"Bearer {self.acessToken}" ,
+        "Content-Type": "application/json" 
+        }
+            
+        
+        response = requests.request("GET", reqUrl, headers=headersList)
+
+        return response
+    
+    @BotCityApi.token
+    def get_file_artifact(self, *, task_id:int):
+        
+        artifact_response = self.get_artifact(task_id=task_id) 
+        if artifact_response.status_code != 200:
+            print("artefato não encontrado!")
+            return artifact_response 
+                
+        artifact_content = artifact_response.json().get("content")[0]
+        artifact_id:int = artifact_content.get("id")
+        
+        reqUrl = f"https://developers.botcity.dev/api/v2/artifact/{artifact_id}/file"
+
+        headersList = {
+        "organization": self.organizationLabel,
+        "Authorization": f"Bearer {self.acessToken}" ,
+        "Content-Type": "application/json" 
+        }
+            
+        
+        response = requests.request("GET", reqUrl, headers=headersList)
+        if response.status_code == 200:
+            dicio = {
+                "file_name": artifact_content.get("fileName"),
+                "file": TaskBotCity.encode_file(response.content)
+            }
+            response._content = json.dumps(dicio).encode('utf-8')
+            
+            return response
+
+        return response
+    
+    
     @staticmethod
     def encode_file(binary_file:bytes):
         return base64.b64encode(binary_file).decode('utf-8')
@@ -53,6 +107,4 @@ class TaskBotCity(BotCityApi):
         return base64.b64decode(str_file)
     
 if __name__ == "__main__":
-    pass
-    
-    
+    pass    
