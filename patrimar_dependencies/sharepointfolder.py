@@ -2,7 +2,7 @@ import os
 from getpass import getuser
 import json
 
-class SharePointFolders(str):
+class SharePointFolders():
     @property
     def base_path(self):
         return self.__base_path
