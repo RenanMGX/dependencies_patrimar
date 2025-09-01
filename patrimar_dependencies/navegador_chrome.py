@@ -95,6 +95,12 @@ class NavegadorChrome(Chrome):
         self.__default_timeout = self.timeouts.page_load
         
         self.speak:bool = speak 
+      
+    def find_element_native(self, by=By.ID, value: str | None = None):
+        super().find_element(by, value)
+        
+    def find_elements_native(self, by=By.ID, value: str | None = None):
+        super().find_elements(by, value)
         
     def find_element(
         self, 
