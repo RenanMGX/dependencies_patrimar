@@ -1,8 +1,11 @@
+from ntpath import join
 import os
 from getpass import getuser
 import json
 
-class SharePointFolders():
+    
+
+class SharepointFolders():
     @property
     def base_path(self):
         return self.__base_path
@@ -84,6 +87,17 @@ class SharePointFolders():
     
     def __repr__(self) -> str:
         return self.found_path
+    
+class SharePointFolders(SharepointFolders):
+    def __init__(self, 
+                 target_path: str,
+                 *, 
+                 base_path: str = f"C:\\Users\\{os.getlogin()}",
+                 paths_register_json_path: str = os.path.join(os.getcwd(), "json", 'paths_register.json')
+                ) -> None:
+        
+        
+        super().__init__(target_path, base_path=base_path, paths_register_json_path=paths_register_json_path)
     
 if __name__ == "__main__":
     spf = SharePointFolders(r"Status Liquidação")
