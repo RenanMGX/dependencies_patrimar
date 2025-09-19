@@ -50,7 +50,8 @@ class NavegadorChrome(Chrome):
                  speak:bool=False,
                  download_path:str="",
                  save_user:bool = False,
-                 headless:bool=True
+                 headless:bool=True,
+                 anonymous:bool=False
         ):
         """
         Inicializa o navegador com configurações customizadas e gerencia o diretório de downloads e perfil de usuário.
@@ -93,7 +94,13 @@ class NavegadorChrome(Chrome):
             options.add_argument("--disable-gpu")  # Desativa o uso de GPU (opcional)
             options.add_argument("--window-size=1920,1080")  # Define o tamanho da janela (opcional)
             options.add_argument("--no-sandbox")  # Necessário em alguns ambientes Linux
-            options.add_argument("--disable-dev-shm-usage")  # Evita problemas de memória compartilhada         
+            options.add_argument("--disable-dev-shm-usage")  # Evita problemas de memória compartilhada  
+            
+        if anonymous:
+            options.add_argument("--incognito")  # Modo anônimo
+            options.add_argument("--disable-extensions")  # Desativa extensões
+            options.add_argument("--disable-popup-blocking")  # Evita bloqueio de pop-ups
+
         
 
         super().__init__(options, service, keep_alive) #type: ignore
