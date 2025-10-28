@@ -104,6 +104,40 @@ class TaskBotCity(BotCityApi):
 
         return response
     
+    @BotCityApi.token
+    def get_file_artifacts(self, *, task_id:int):
+        
+        artifact_response = self.get_artifact(task_id=task_id) 
+        if artifact_response.status_code != 200:
+            print("artefato não encontrado!")
+            return artifact_response 
+        
+        artifact_list = []
+        
+        for artifact_content in artifact_response.json().get("content"):
+            artifact_id:int = artifact_content.get("id")
+        
+            reqUrl = f"https://developers.botcity.dev/api/v2/artifact/{artifact_id}/file"
+
+            headersList = {
+            "organization": self.organizationLabel,
+            "Authorization": f"Bearer {self.acessToken}" ,
+            "Content-Type": "application/json" 
+            }
+            
+        
+            response = requests.request("GET", reqUrl, headers=headersList)
+            if response.status_code == 200:
+                dicio = {
+                    "file_name": artifact_content.get("fileName"),
+                    "file": TaskBotCity.encode_file(response.content)
+                }
+                response._content = json.dumps(dicio).encode('utf-8')
+
+                artifact_list.append(response)
+
+        return artifact_list
+    
     
     @staticmethod
     def encode_file(binary_file:bytes):
