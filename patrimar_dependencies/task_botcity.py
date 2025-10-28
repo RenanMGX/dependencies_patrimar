@@ -132,11 +132,21 @@ class TaskBotCity(BotCityApi):
                     "file_name": artifact_content.get("fileName"),
                     "file": TaskBotCity.encode_file(response.content)
                 }
-                response._content = json.dumps(dicio).encode('utf-8')
+                artifact_list.append(dicio)
+        
+        
+        _response:Response = Response()
+        if artifact_list:  
+            _response._content = json.dumps(artifact_list).encode('utf-8')
+            _response.status_code = 200
+            _response.reason = "OK"
+        else:
+            _response.status_code = 400
+            _response.reason = "Not Found"
+            _response._content = b"[]"
 
-                artifact_list.append(response)
 
-        return artifact_list
+        return _response
     
     
     @staticmethod
