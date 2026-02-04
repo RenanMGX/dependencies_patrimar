@@ -1,11 +1,7 @@
-from ntpath import join
 import os
-from getpass import getuser
 import json
 
-    
-
-class SharepointFolders():
+class SharepointFoldersClass():
     @property
     def base_path(self):
         return self.__base_path
@@ -71,7 +67,6 @@ class SharepointFolders():
         except:
             return {}
     
-    
     def __save_registerPath(self):
         found_path = self.found_path
         if not os.path.exists(found_path):
@@ -88,19 +83,27 @@ class SharepointFolders():
     def __repr__(self) -> str:
         return self.found_path
     
-class SharePointFolders(SharepointFolders):
-    def __init__(self, 
-                 target_path: str,
-                 *, 
-                 base_path: str = f"C:\\Users\\{os.getlogin()}",
-                 paths_register_json_path: str = os.path.join(os.getcwd(), "json", 'paths_register.json')
-                ) -> None:
+class SharePointFolders(str, SharepointFoldersClass):
+    def __new__(cls, *args, **kwargs):
+        return str.__new__(cls, SharepointFoldersClass(*args, **kwargs).value)
+    
+    def __init__(self, target_path: str, *, base_path: str = f"C:\\Users\\{os.getlogin()}", paths_register_json_path: str = os.path.join(os.getcwd(), "json", 'paths_register.json')) -> None:
+        super().__init__(target_path, base_path=base_path, paths_register_json_path=paths_register_json_path)
         
-        
+class SharepointFolders(str, SharepointFoldersClass):
+    def __new__(cls, *args, **kwargs):
+        return str.__new__(cls, SharepointFoldersClass(*args, **kwargs).value)
+    
+    def __init__(self, target_path: str, *, base_path: str = f"C:\\Users\\{os.getlogin()}", paths_register_json_path: str = os.path.join(os.getcwd(), "json", 'paths_register.json')) -> None:
         super().__init__(target_path, base_path=base_path, paths_register_json_path=paths_register_json_path)
     
 if __name__ == "__main__":
-    spf = SharePointFolders(r"Status Liquidação")
+    spf = SharePointFolders(r"Status Liquidação", paths_register_json_path = os.path.join(os.getcwd(), "json", 'paths_register_teste.json'))
     
-    print(type(spf))
+    print(type(spf), "\n    ",spf, "\n        ",os.path.exists(spf))
+    print(type(spf.value), "\n    ",spf.value, "\n        ",os.path.exists(spf.value))
+    
+    print()
+    import re
+    print(re.search(r"renan", spf))
     
