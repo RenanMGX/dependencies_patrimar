@@ -21,11 +21,11 @@ class PageError(Exception):
         super().__init__(*args)
 
 class NavegadorFirefox(Firefox):
-    # def __del__(self):
-    #     try:
-    #         self.close()
-    #     except:
-    #         pass
+    def __del__(self):
+        try:
+            self.close()
+        except:
+            pass
     
     @property
     def default_timeout(self):
