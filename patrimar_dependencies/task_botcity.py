@@ -6,6 +6,9 @@ import base64
 import requests
 from requests.models import Response
 import json
+from typing import List
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 class TaskBotCity(BotCityApi):
     def __init__(self, *, login: str, key: str) -> None:
@@ -156,6 +159,58 @@ class TaskBotCity(BotCityApi):
     @staticmethod
     def decode_file(str_file:str):
         return base64.b64decode(str_file)
+    
+    @BotCityApi.token
+    def get_task_alerts(self, task_id:int):
+        reqUrl = f"https://developers.botcity.dev/api/v2/alerts?taskId={task_id}"
+
+        headersList = {
+        "organization": self.organizationLabel,
+        "accept" : "*/*",
+        "Authorization": f"Bearer {self.acessToken}" ,
+        "Content-Type": "application/json" 
+        }
+        # print(reqUrl)
+        # print(headersList)
+        # print()
+        
+        
+        response = requests.request("GET", reqUrl, headers=headersList)
+
+        return response
+    
+    def get_task_alerts_messages(self, task_id:int) -> list:
+        alerts_response = self.get_task_alerts(task_id=task_id)
+        if alerts_response.status_code != 200:
+            print("alertas não encontrados!")
+            return [] 
+        
+        try:
+            alerts_content:List[dict] = alerts_response.json().get("content")
+            messages = []
+            for alert in alerts_content:
+                try:
+                    date = datetime.fromisoformat(str(alert.get("date")))
+                    date = date - relativedelta(hours=3)
+                    date = date.strftime("[%d/%m/%Y - %H:%M:%S]")
+                except:
+                    date = "[ data desconhecida ]"
+                
+                _type = ""
+                if alert.get("type") == "INFO":
+                    _type = "<django:green>"
+                elif alert.get("type") == "ERROR":
+                    _type = "<django:red>"
+                elif _type == "WARN":
+                    _type = "<django:yellow>"
+                    
+                messages.append(f"{date} - {alert.get('message')} {_type}")
+            
+            return messages
+        except:
+            print("alertas não encontrados!")
+            return []
+    
     
 if __name__ == "__main__":
     pass    
