@@ -6,6 +6,11 @@ import subprocess
 from time import sleep
 import traceback
 import sys
+import re
+
+class SAPError(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
 
 class FindNewID:
     def __init__(self, connection:win32com.client.CDispatch) -> None:
@@ -49,6 +54,11 @@ class SAPManipulation():
         :return: Sessão do SAP.
         """
         return self.__session
+    
+    @session.setter
+    def session(self, value):
+        self.__session = value
+    
     @session.deleter
     def session(self):
         """
@@ -68,6 +78,25 @@ class SAPManipulation():
         :return: True se estiver usando uma conexão ativa, False caso contrário.
         """
         return self.__using_active_conection
+    
+    @property
+    def session_count(self) -> int:
+        return self.connection.Children.Count
+    
+    @property
+    def list_sessions(self) -> dict:
+        """
+        Retorna uma lista de sessões ativas do SAP.
+
+        :return: Dicionário com o número de sessões ativas.
+        """
+        sessions = {}
+        for x in range(self.connection.Children.Count):
+            sessions[x] = self.connection.Children(x)
+        return sessions
+    
+    def __delete__(self):
+        self.fechar_sap(all=True)
     
     def __init__(self, *, user:str|None="", password:str|None="", ambiente:str|None="", using_active_conection:bool=False, new_conection=False) -> None:
         """
@@ -167,73 +196,81 @@ class SAPManipulation():
         for _ in range(2):
             self.__session: win32com.client.CDispatch
             if not self.using_active_conection:
-                try:
-                    if not self.__verificar_sap_aberto():
-                        subprocess.Popen(r"C:\Program Files (x86)\SAP\FrontEnd\SapGui\saplogon.exe")
-                        sleep(5)
-                    
-                    SapGuiAuto: win32com.client.CDispatch = win32com.client.GetObject("SAPGUI")# type: ignore
-                    application: win32com.client.CDispatch = SapGuiAuto.GetScriptingEngine# type: ignore
-                    
-                    for _ in range(60*60):
-                        try:
-                            if self.__new_connection:
-                                raise Exception("Erro controlado")
-                            
-                            conected_info = application.Children(0).Children(0).Info
-                            if conected_info.SystemName.lower() != self.__ambiente.lower():# type: ignore
-                                raise Exception("Erro controlado")
-                            if conected_info.User.lower() != self.__user.lower():# type: ignore
-                                raise Exception("Erro controlado")
-                            
-                            connection = application.Children(0) # type: ignore
-                        except:
-                            connection = application.OpenConnection(self.__ambiente, True) # type: ignore
-                            self.__session = connection.Children(0)# type: ignore
-                            self.session.findById("wnd[0]/usr/txtRSYST-BNAME").text = self.__user # Usuario
-                            self.session.findById("wnd[0]/usr/pwdRSYST-BCODE").text = self.__password # Senha
-                            self.session.findById("wnd[0]").sendVKey(0)
-                            break
+                for tentativa in range(3):
+                    try:
+                        if not self.__verificar_sap_aberto():
+                            subprocess.Popen(r"C:\Program Files (x86)\SAP\FrontEnd\SapGui\saplogon.exe")
+                            for _ in range(30):
+                                sleep(2)
+                                if self.__verificar_sap_aberto():
+                                    sleep(5)
+                                    break
                         
-                            
-                        if _ >= ((60*60) - 2):
-                            sys.exit()
+                        SapGuiAuto: win32com.client.CDispatch = win32com.client.GetObject("SAPGUI")# type: ignore
+                        self.application: win32com.client.CDispatch = SapGuiAuto.GetScriptingEngine# type: ignore
                         
-                        if connection.Children.Count >= 6:
+                        for _ in range(60*60):
+                            try:
+                                if self.__new_connection:
+                                    raise Exception("Erro controlado")
+                                
+                                conected_info = self.application.Children(0).Children(0).Info
+                                if conected_info.SystemName.lower() != self.__ambiente.lower():# type: ignore
+                                    raise Exception("Erro controlado")
+                                if conected_info.User.lower() != self.__user.lower():# type: ignore
+                                    raise Exception("Erro controlado")
+                                
+                                self.connection = self.application.Children(0) # type: ignore
+                            except:
+                                self.connection = self.application.OpenConnection(self.__ambiente, True) # type: ignore
+                                self.__session = self.connection.Children(0)# type: ignore
+                                self.session.findById("wnd[0]/usr/txtRSYST-BNAME").text = self.__user # Usuario
+                                self.session.findById("wnd[0]/usr/pwdRSYST-BCODE").text = self.__password # Senha
+                                self.session.findById("wnd[0]").sendVKey(0)
+                                break
+                            
+                                
+                            if _ >= ((60*60) - 2):
+                                sys.exit()
+                            
+                            if self.connection.Children.Count >= 6:
+                                sleep(1)
+                                continue
+                            
+                            novo_id = FindNewID(self.connection)
+                            session = self.connection.Children(0)# type: ignore
+                            
+                            session.findById("wnd[0]").sendVKey(74)
+                            
                             sleep(1)
+                            self.__session = self.connection.Children(novo_id.target(self.connection))# type: ignore
+                            break
+                                        
+                        try:
+                            if (sbar:=self.session.findById("wnd[0]/sbar").text):
+                                print(P(sbar, color="cyan"))
+                        except:
+                            pass
+                        try:
+                            self.session.findById("wnd[1]/tbar[0]/btn[0]").press() 
+                        except:
+                            pass
+                        print(P(f"SAP conectado com Sucesso! na tentativa {tentativa + 1}", color='green'))
+                        return 
+
+                    except Exception as error:
+                        if "sessão nao encontrada!" in str(error):
+                            print(P("não foi possivel se conectar a mais uma tela do SAP", color='red'))
+                            self.finalizar_programa_sap()
                             continue
-                        
-                        novo_id = FindNewID(connection)
-                        session = connection.Children(0)# type: ignore
-                        
-                        session.findById("wnd[0]").sendVKey(74)
-                        
-                        sleep(1)
-                        self.__session = connection.Children(novo_id.target(connection))# type: ignore
-                        break
-                                    
-                    try:
-                        if (sbar:=self.session.findById("wnd[0]/sbar").text):
-                            print(P(sbar, color="cyan"))
-                    except:
-                        pass
-                    try:
-                        self.session.findById("wnd[1]/tbar[0]/btn[0]").press() 
-                    except:
-                        pass
-                    
-                    return 
-                
-                
-                except Exception as error:
-                    if "sessão nao encontrada!" in str(error):
-                        print(P("não foi possivel se conectar a mais uma tela do SAP", color='red'))
-                        self.finalizar_programa_sap()
-                        continue
-                    if "connection = application.OpenConnection(self.__ambiente, True)" in traceback.format_exc():
-                        raise Exception("SAP está fechado!")
-                    else:
-                        raise ConnectionError(f"não foi possivel se conectar ao SAP motivo: {type(error).__class__} -> {error}")
+                        elif "(-2147221020, 'Sintaxe inválida', None, None)" in traceback.format_exc():
+                            if tentativa >= 2:
+                                raise Exception("não foi possivel se conectar a mais uma tela do SAP")
+                            continue
+                        elif "connection = application.OpenConnection(self.__ambiente, True)" in traceback.format_exc():
+                            raise Exception("SAP está fechado!")
+                        else:
+                            raise ConnectionError(f"não foi possivel se conectar ao SAP motivo: {type(error).__class__} -> {error}")
             else:
                 try:
                     if not self.__verificar_sap_aberto():
@@ -249,24 +286,38 @@ class SAPManipulation():
                         raise Exception("SAP está fechado!")
                     elif "SAP está fechado!" in traceback.format_exc():
                         raise Exception("SAP está fechado!")
-
+    
+    def fechar_sap(self, *, all:bool=False):
+        if not all:
+            return self.close_app_sap()
+        
+        connections_list = [value for value in range(self.connection.Children.Count)]
+        connections_list.reverse()
+        
+        for con in connections_list:
+            self.session = self.connection.Children(con)
+            self.close_app_sap()
+    
     # Método para fechar o SAP
-    def fechar_sap(self):
+    def close_app_sap(self, *, session_id:int|None=None):
         """
         Fecha a sessão atual do SAP.
         """
         print(P("fechando SAP!", color='red'))
+        session = self.session
+        if session_id:
+            session = self.connection.Children(session_id)
         try:
             sleep(1)
-            self.session.findById("wnd[0]").close()
+            session.findById("wnd[0]").close()
             sleep(1)
             try:
                 try:
-                    self.session.findById('wnd[1]/usr/btnSPOP-OPTION1').press()
+                    session.findById('wnd[1]/usr/btnSPOP-OPTION1').press()
                 except:
-                    self.session.findById('wnd[2]/usr/btnSPOP-OPTION1').press()
+                    session.findById('wnd[2]/usr/btnSPOP-OPTION1').press()
             finally:
-                del self.__session
+                del session
         except Exception as error:
             print(P(f"não foi possivel fechar o SAP {type(error)} | {error}", color='red'))
 
@@ -282,6 +333,35 @@ class SAPManipulation():
         for child_object in self.session.findById(campo).Children:
             print(f"{cont}: ","ID:", child_object.Id, "| Type:", child_object.Type, "| Text:", child_object.Text)
             cont += 1
+            
+    def create_new_session(self):
+        self.session.CreateSession()
+        return self.connection.Children.Count
+    
+    def set_actual_session(self, session_id:int, *, ignore_error:bool=False) -> bool:
+        try:
+            self.session = self.connection.Children(session_id)
+            return True
+        except Exception as error:
+            if "The enumerator of the collection cannot find an element with the specified index." in traceback.format_exc():
+                if ignore_error:
+                    print(P(f"Não foi possível encontrar a sessão com o id {session_id}, mas o erro foi ignorado.", color='red'))
+                    return False
+                raise SAPError(f"Não foi possível encontrar a sessão com o id {session_id}")
+            if ignore_error:
+                print(P(f"Erro desconhecido ao tentar encontrar a sessão com o id {session_id}, mas o erro foi ignorado. Erro: {type(error)} | {error}", color='red'))
+                return False
+            raise error
+        
+    
+
+    def get_actual_session_id(self, session:win32com.client.CDispatch|None=None, *, ignore_error:bool=False) -> int|None:
+        if session is None:
+            session = self.session
+        if isinstance(session, win32com.client.CDispatch):
+            if (number:=re.search(r"(?<=ses\[)\d(?=\])", session.Id)):
+                return int(number.group())
+        return None
 
     # Método para verificar se o SAP está aberto
     def __verificar_sap_aberto(self) -> bool:
