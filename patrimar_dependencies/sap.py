@@ -69,6 +69,10 @@ class SAPManipulation():
         except:
             pass
         
+    @property
+    def conn_id(self):
+        if (number:=re.search(r"(?<=con\[)\d(?=\])", self.connection.Id)):
+            return int(number.group())
     
     @property
     def using_active_conection(self) -> bool:
@@ -98,7 +102,7 @@ class SAPManipulation():
     def __delete__(self):
         self.fechar_sap(all=True)
     
-    def __init__(self, *, user:str|None="", password:str|None="", ambiente:str|None="", using_active_conection:bool=False, new_conection=False) -> None:
+    def __init__(self, *, user:str|None="", password:str|None="", ambiente:str|None="", using_active_conection:bool=False, new_conection=False, connect_in_connId=None) -> None:
         """
         Inicializa a classe SAPManipulation.
 
@@ -109,7 +113,7 @@ class SAPManipulation():
         :param new_conection: Se é uma nova conexão.
         :raises Exception: Se não preencher todos os campos necessários.
         """
-        if not using_active_conection:
+        if not using_active_conection and not connect_in_connId:
             if not ((user) and (password) and (ambiente)):
                 raise Exception(f"""é necessario preencher todos os campos \n
                                 {user=}\n
@@ -118,6 +122,7 @@ class SAPManipulation():
                                 """)
         
         self.__using_active_conection = using_active_conection
+        self.__connect_in_connId = connect_in_connId
         self.__user:str|None = user
         self.__password:str|None = password
         self.__ambiente:str|None = ambiente
@@ -195,7 +200,7 @@ class SAPManipulation():
         """
         for _ in range(2):
             self.__session: win32com.client.CDispatch
-            if not self.using_active_conection:
+            if not self.using_active_conection and not self.__connect_in_connId:
                 for tentativa in range(3):
                     try:
                         if not self.__verificar_sap_aberto():
@@ -278,14 +283,32 @@ class SAPManipulation():
                     
                     self.SapGuiAuto: win32com.client.CDispatch = win32com.client.GetObject("SAPGUI")
                     self.application: win32com.client.CDispatch = self.SapGuiAuto.GetScriptingEngine
-                    self.connection: win32com.client.CDispatch = self.application.Children(0)
-                    self.__session = self.connection.Children(0)
+
+                    if self.__connect_in_connId:
+                        try:
+                            self.connection: win32com.client.CDispatch = self.application.Children(self._transform_connId_to_connKey(self.__connect_in_connId))
+                        except:
+                            raise SAPError(f"Não foi possível encontrar a conexão com o id {self.__connect_in_connId}. Verifique se o id está correto e se a conexão está ativa.")
+                    else:
+                        self.connection: win32com.client.CDispatch = self.application.Children(0)
                     
+                    self.__session = self.connection.Children(0)
+                
+                except SAPError as error:
+                    raise error
                 except Exception as error:
                     if "self.connection: win32com.client.CDispatch = self.application.Children(0)" in traceback.format_exc():
                         raise Exception("SAP está fechado!")
                     elif "SAP está fechado!" in traceback.format_exc():
                         raise Exception("SAP está fechado!")
+                    #if _ >= 1:
+                        #raise error
+    
+    def _transform_connId_to_connKey(self, connId):
+        for x in range(self.application.Children.Count):
+            if f"con[{connId}]" in self.application.Children(x).Id:
+                return x
+        raise SAPError("Conexão não encontrada!")
     
     def fechar_sap(self, *, all:bool=False):
         if not all:
