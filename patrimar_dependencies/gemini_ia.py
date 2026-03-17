@@ -54,7 +54,7 @@ class GeminiIA:
     def __init__(self, *,
                 token:str,
                 instructions:str = "voce é um assistente virual prestavito e educado!",
-                model:Literal["gemini-2.0-flash", "gemini-2.5-flash-preview-04-17", "gemini-2.5-pro-preview-05-06", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"] = "gemini-2.0-flash-lite",
+                model:Literal["gemini-2.0-flash", "gemini-2.5-flash-preview-04-17", "gemini-2.5-pro-preview-05-06", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"]|str = "gemini-2.0-flash-lite",
                     temperature: float = 0.5,
                     max_output_tokens: int = 300,
                     top_p: float = 0.9,
@@ -109,7 +109,7 @@ class GeminiIA:
     
 class ErrorIA(GeminiIA):
     @staticmethod
-    def error_message(*, token:str, message:str) -> str:
+    def error_message(*, token:str, message:str, model:str|None=None) -> str:
             if token:
                 try:
                     ia = GeminiIA(token=token,
@@ -128,6 +128,7 @@ class ErrorIA(GeminiIA):
                                 temperature=0.2,
                                 top_p=0.8,
                                 top_k=40,
+                                model=model or "gemini-2.5-flash-lite"
                                 )
                     resposta = ia.perguntar(pergunta=message).text
                     return resposta
