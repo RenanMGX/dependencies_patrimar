@@ -281,6 +281,11 @@ class TaskBotCity(BotCityApi):
                 raise Exception("O parâmetro columns deve ser uma lista de dicionários no formato [{'key': 'nome_da_coluna', 'value': 'valor_da_coluna'}, ...]")
             if 'name' not in column or 'label' not in column:
                 raise Exception("Cada dicionário em columns deve conter as chaves 'name' e 'label'. Exemplo: {'name': 'Nome da Coluna', 'label': 'nome_coluna'}")
+            if not column.get("visible"):
+                column["visible"] = True
+            else:
+                if not column["visible"]:
+                    del column["visible"]
             
         reqUrl = f"https://developers.botcity.dev/api/v2/log"
 
