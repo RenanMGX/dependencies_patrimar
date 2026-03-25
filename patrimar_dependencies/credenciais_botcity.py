@@ -68,7 +68,7 @@ class CredentialBotCity(BotCityApi):
         response = requests.request("GET", reqUrl, data=payload,  headers=headersList)
 
         if response.status_code != 200:
-            Exception(f"Erro ao obter credencial: {response.status_code} - {response.reason} - {response.text}")   
+            raise Exception(f"Erro ao obter credencial: {response.status_code} - {response.reason} - {response.text}")
             
         credentials_list:list = response.json()
         

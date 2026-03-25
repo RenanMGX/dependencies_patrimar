@@ -90,12 +90,7 @@ class SharePointFolders(str, SharepointFoldersClass):
     def __init__(self, target_path: str, *, base_path: str = f"C:\\Users\\{os.getlogin()}", paths_register_json_path: str = os.path.join(os.getcwd(), "json", 'paths_register.json')) -> None:
         super().__init__(target_path, base_path=base_path, paths_register_json_path=paths_register_json_path)
         
-class SharepointFolders(str, SharepointFoldersClass):
-    def __new__(cls, *args, **kwargs):
-        return str.__new__(cls, SharepointFoldersClass(*args, **kwargs).value)
-    
-    def __init__(self, target_path: str, *, base_path: str = f"C:\\Users\\{os.getlogin()}", paths_register_json_path: str = os.path.join(os.getcwd(), "json", 'paths_register.json')) -> None:
-        super().__init__(target_path, base_path=base_path, paths_register_json_path=paths_register_json_path)
+SharepointFolders = SharePointFolders
     
 if __name__ == "__main__":
     spf = SharePointFolders(r"Status Liquidação", paths_register_json_path = os.path.join(os.getcwd(), "json", 'paths_register_teste.json'))

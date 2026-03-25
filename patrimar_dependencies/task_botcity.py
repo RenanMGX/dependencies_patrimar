@@ -182,7 +182,7 @@ class TaskBotCity(BotCityApi):
                     _type = "<django:green>"
                 elif alert.get("type") == "ERROR":
                     _type = "<django:red>"
-                elif _type == "WARN":
+                elif alert.get("type") == "WARN":
                     _type = "<django:yellow>"
                     
                 messages.append(f"{date} - {alert.get('message')} {_type}")

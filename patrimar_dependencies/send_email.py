@@ -64,7 +64,7 @@ class SendEmail:
             self.__msg.attach(part)
             
             return self
-        except KeyError:
+        except AttributeError:
             raise Exception(f"Crie um corpo de email primeiro usando '.mensagem'")
     
     def addImagemCid(self, *, Attachment_path:str, tag:str):
@@ -82,15 +82,16 @@ class SendEmail:
             
             self.__msg.attach(imagem)
             return self
-        except KeyError:
+        except AttributeError:
             raise Exception(f"Crie um corpo de email primeiro usando '.mensagem'")
           
     
     def send(self):
         try:
             self.__msg
-        except KeyError:
+        except AttributeError:
             print(P("Crie um corpo para o email primeiro usando '.mensagem'", color='red'))
+            return
         
         destinatarios = []
         for campo in ['To', 'CC']:
