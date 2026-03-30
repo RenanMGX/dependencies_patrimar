@@ -271,8 +271,9 @@ class SAPManipulation():
                         elif "(-2147221020, 'Sintaxe inválida', None, None)" in traceback.format_exc():
                             if tentativa >= 2:
                                 raise Exception("não foi possivel se conectar a mais uma tela do SAP")
+                            sleep(10)  # Aguarda o motor de scripting SAP (COM) inicializar
                             continue
-                        elif "connection = application.OpenConnection(self.__ambiente, True)" in traceback.format_exc():
+                        elif "self.application.OpenConnection" in traceback.format_exc():
                             raise Exception("SAP está fechado!")
                         else:
                             raise ConnectionError(f"não foi possivel se conectar ao SAP motivo: {type(error).__class__} -> {error}")
@@ -293,6 +294,7 @@ class SAPManipulation():
                         self.connection: win32com.client.CDispatch = self.application.Children(0)
                     
                     self.__session = self.connection.Children(0)
+                    return
                 
                 except SAPError as error:
                     raise error
@@ -301,8 +303,9 @@ class SAPManipulation():
                         raise Exception("SAP está fechado!")
                     elif "SAP está fechado!" in traceback.format_exc():
                         raise Exception("SAP está fechado!")
-                    #if _ >= 1:
-                        #raise error
+                    else:
+                        raise error
+        raise Exception("Não foi possível conectar ao SAP após todas as tentativas")
     
     def _transform_connId_to_connKey(self, connId):
         for x in range(self.application.Children.Count):
@@ -394,8 +397,11 @@ class SAPManipulation():
         :return: True se o SAP estiver aberto, False caso contrário.
         """
         for process in psutil.process_iter(['name']):
-            if "saplogon" in process.name().lower():
-                return True
+            try:
+                if "saplogon" in process.name().lower():
+                    return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
         return False    
     
     
