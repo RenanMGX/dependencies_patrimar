@@ -254,6 +254,7 @@ class NavegadorEdge(Edge):
         for _ in range(10):
             try:
                 result = super().get(url)
+                result = super().get(url)
                 sleep(1)
                 self.set_page_load_timeout(self.default_timeout)
                 return result
