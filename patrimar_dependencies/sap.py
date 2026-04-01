@@ -1,12 +1,25 @@
 from .functions import P
 import win32com.client
+import pywintypes
 from functools import wraps
 import psutil
 import subprocess
 from time import sleep
 import traceback
-import sys
 import re
+
+# Códigos de erro COM do SAP que indicam desconexão
+_SAP_COM_DISCONNECTED_CODES = {
+    -2147417848,  # O objeto chamado foi desconectado de seus clientes
+    -2147352567,  # Falha de chamada COM genérica
+    -2147221020,  # Sintaxe inválida / COM não inicializado
+}
+
+def _is_com_disconnect_error(error) -> bool:
+    """Verifica se o erro é um erro de desconexão COM do SAP."""
+    if isinstance(error, pywintypes.com_error):
+        return error.args[0] in _SAP_COM_DISCONNECTED_CODES if error.args else False
+    return False
 
 class SAPError(Exception):
     def __init__(self, *args: object) -> None:
@@ -71,8 +84,11 @@ class SAPManipulation():
         
     @property
     def conn_id(self):
-        if (number:=re.search(r"(?<=con\[)\d(?=\])", self.connection.Id)):
-            return int(number.group())
+        try:
+            if (number:=re.search(r"(?<=con\[)\d+(?=\])", self.connection.Id)):
+                return int(number.group())
+        except (AttributeError, pywintypes.com_error):
+            return None
     
     @property
     def using_active_conection(self) -> bool:
@@ -85,7 +101,10 @@ class SAPManipulation():
     
     @property
     def session_count(self) -> int:
-        return self.connection.Children.Count
+        try:
+            return self.connection.Children.Count
+        except (AttributeError, pywintypes.com_error):
+            return 0
     
     @property
     def list_sessions(self) -> dict:
@@ -95,12 +114,18 @@ class SAPManipulation():
         :return: Dicionário com o número de sessões ativas.
         """
         sessions = {}
-        for x in range(self.connection.Children.Count):
-            sessions[x] = self.connection.Children(x)
+        try:
+            for x in range(self.connection.Children.Count):
+                sessions[x] = self.connection.Children(x)
+        except (AttributeError, pywintypes.com_error):
+            pass
         return sessions
     
-    def __delete__(self):
-        self.fechar_sap(all=True)
+    def __del__(self):
+        try:
+            self.fechar_sap(all=True)
+        except:
+            pass
     
     def __init__(self, *, user:str|None="", password:str|None="", ambiente:str|None="", using_active_conection:bool=False, new_conection=False, connect_in_connId=None) -> None:
         """
@@ -137,27 +162,42 @@ class SAPManipulation():
         :param f: Função a ser decorada.
         :return: Função decorada.
         """
+        @wraps(f)
         def wrap(self, *args, **kwargs):
             _self:SAPManipulation = self
             
-            try:
-                _self.session
-            except AttributeError:
-                _self.__conectar_sap()
-            try:
-                result =  f(_self, *args, **kwargs)
-            finally:
-                sleep(5)
+            # Reconectar quando o COM SAP é desconectado em tempo de execução
+            for _reconnect_attempt in range(2):
                 try:
-                    if kwargs['fechar_sap_no_final']:
-                        _self.fechar_sap()
-                except:
-                    pass
-            return result
+                    _self.session
+                except AttributeError:
+                    _self._SAPManipulation__conectar_sap() #type: ignore
+                try:
+                    result = f(_self, *args, **kwargs)
+                except pywintypes.com_error as com_err:
+                    if _is_com_disconnect_error(com_err) and _reconnect_attempt == 0:
+                        err_code = com_err.args[0] if com_err.args else None
+                        print(P(f"Sessão SAP desconectada (COM error {err_code:#010x}). Reconectando...", color='yellow'))
+                        del _self.session
+                        _self._SAPManipulation__conectar_sap() #type: ignore
+                        continue
+                    raise
+                else:
+                    # Sucesso: delay de estabilização e fechar se solicitado
+                    sleep(5)
+                    try:
+                        if kwargs.get('fechar_sap_no_final'):
+                            _self.fechar_sap()
+                    except:
+                        pass
+                    return result
+            # Segurança: todas as tentativas falharam sem exceção propagada
+            raise SAPError("Não foi possível executar a operação SAP após reconexão")
         return wrap
     
     @staticmethod
     def fechar_sap_no_final(f):
+        @wraps(f)
         def wrap(self, *args, **kwargs):
             _self:SAPManipulation = self
             
@@ -234,9 +274,11 @@ class SAPManipulation():
                                 self.session.findById("wnd[0]").sendVKey(0)
                                 break
                             
+                            if _ % 60 == 0 and _ > 0:
+                                print(P(f"Aguardando sessão SAP disponível... ({_}s)", color='yellow'))
                                 
                             if _ >= ((60*60) - 2):
-                                sys.exit()
+                                raise Exception("SAP não respondeu após tempo limite. Verifique se há sessões disponíveis.")
                             
                             if self.connection.Children.Count >= 6:
                                 sleep(1)
@@ -268,15 +310,16 @@ class SAPManipulation():
                             print(P("não foi possivel se conectar a mais uma tela do SAP", color='red'))
                             self.finalizar_programa_sap()
                             continue
-                        elif "(-2147221020, 'Sintaxe inválida', None, None)" in traceback.format_exc():
+                        elif _is_com_disconnect_error(error):
                             if tentativa >= 2:
                                 raise Exception("não foi possivel se conectar a mais uma tela do SAP")
-                            sleep(10)  # Aguarda o motor de scripting SAP (COM) inicializar
+                            print(P(f"Erro COM ao conectar ao SAP (tentativa {tentativa + 1}/3). Aguardando...", color='yellow'))
+                            sleep(10)
                             continue
                         elif "self.application.OpenConnection" in traceback.format_exc():
                             raise Exception("SAP está fechado!")
                         else:
-                            raise ConnectionError(f"não foi possivel se conectar ao SAP motivo: {type(error).__class__} -> {error}")
+                            raise ConnectionError(f"não foi possivel se conectar ao SAP motivo: {type(error).__name__} -> {error}")
             else:
                 try:
                     if not self.__verificar_sap_aberto():
@@ -314,15 +357,18 @@ class SAPManipulation():
         raise SAPError("Conexão não encontrada!")
     
     def fechar_sap(self, *, all:bool=False):
-        if not all:
-            return self.close_app_sap()
-        
-        connections_list = [value for value in range(self.connection.Children.Count)]
-        connections_list.reverse()
-        
-        for con in connections_list:
-            self.session = self.connection.Children(con)
-            self.close_app_sap()
+        try:
+            if not all:
+                return self.close_app_sap()
+            
+            connections_list = [value for value in range(self.connection.Children.Count)]
+            connections_list.reverse()
+            
+            for con in connections_list:
+                self.session = self.connection.Children(con)
+                self.close_app_sap()
+        except (AttributeError, pywintypes.com_error) as error:
+            print(P(f"Erro ao fechar SAP: {type(error).__name__} -> {error}", color='red'))
     
     # Método para fechar o SAP
     def close_app_sap(self, *, session_id:int|None=None):
@@ -330,9 +376,15 @@ class SAPManipulation():
         Fecha a sessão atual do SAP.
         """
         print(P("fechando SAP!", color='red'))
-        session = self.session
+        try:
+            session = self.session
+        except AttributeError:
+            return
         if session_id:
-            session = self.connection.Children(session_id)
+            try:
+                session = self.connection.Children(session_id)
+            except (AttributeError, pywintypes.com_error):
+                return
         try:
             sleep(1)
             session.findById("wnd[0]").close()
@@ -345,7 +397,7 @@ class SAPManipulation():
             finally:
                 del session
         except Exception as error:
-            print(P(f"não foi possivel fechar o SAP {type(error)} | {error}", color='red'))
+            print(P(f"não foi possivel fechar o SAP {type(error).__name__} | {error}", color='red'))
 
     # Método para listar elementos
     @start_SAP
@@ -375,7 +427,7 @@ class SAPManipulation():
                     return False
                 raise SAPError(f"Não foi possível encontrar a sessão com o id {session_id}")
             if ignore_error:
-                print(P(f"Erro desconhecido ao tentar encontrar a sessão com o id {session_id}, mas o erro foi ignorado. Erro: {type(error)} | {error}", color='red'))
+                print(P(f"Erro desconhecido ao tentar encontrar a sessão com o id {session_id}, mas o erro foi ignorado. Erro: {type(error).__name__} | {error}", color='red'))
                 return False
             raise error
         
@@ -385,7 +437,7 @@ class SAPManipulation():
         if session is None:
             session = self.session
         if isinstance(session, win32com.client.CDispatch):
-            if (number:=re.search(r"(?<=ses\[)\d(?=\])", session.Id)):
+            if (number:=re.search(r"(?<=ses\[)\d+(?=\])", session.Id)):
                 return int(number.group())
         return None
 
@@ -407,9 +459,13 @@ class SAPManipulation():
     
     def finalizar_programa_sap(self):
         for proc in psutil.process_iter(['name']):
-            if "sap" in proc.info['name'].lower():
-                proc.kill()
-                print("Processo SAP encerrado.")    
+            try:
+                proc_name = proc.info.get('name') or ''
+                if "sap" in proc_name.lower():
+                    proc.kill()
+                    print(P("Processo SAP encerrado.", color='red'))
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue    
     
     # Método de teste         
     @start_SAP
